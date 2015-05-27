@@ -98,8 +98,7 @@ double GetPoSKernelPS()
 	
 	if (nStakesTime)
 		result = dStakeKernelsTriedAvg / nStakesTime;
-	if (IsPoSV2(nBestHeight))
-		result *= STAKE_TIMESTAMP_MASK + 1;
+	
 	return result;
 }
 
@@ -413,7 +412,3 @@ Value getstakers(const Array& params, bool fHelp)
 
     return result;
 }
-
-
-
-
