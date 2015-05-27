@@ -316,6 +316,30 @@ Value getcheckpoint(const Array& params, bool fHelp)
 //staker dividends
 //BTCDDev
 
+char *unstringify(char *str)
+{
+    int i,j,n;
+    if (str == 0)
+        return(0);
+    else if(str[0] == 0)
+        return(str);
+    n = (int)strlen(str);
+    if(str[0] == '"' && str[n-1] == '"' )
+        str[n-1] = 0, i = 1;
+    else i = 0;
+
+    for (j = 0; str[i]!=0; i++)
+    {
+        if (str[i] == '\\' && (str[i+1] == 't' || str[i+1] == 'n' || str[i+1] == 'b' || str[i+1] == 'r' ) )
+            i++;
+        else if(str[i] == '\\' && str[i+1] == '"')
+            str[j++] = '"', i++;
+        else str[j++] = str[i];
+    }
+    str[j] = 0;
+    return(str);
+}
+
 Value getstakers(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 4)
@@ -330,11 +354,11 @@ Value getstakers(const Array& params, bool fHelp)
 	int amtProvided = 0;
 	int iCount = 0;
 
-	std::string outStr("'{");	
+    std::string outStr(" '{");
 
     if (max < nHeight)
 	    throw runtime_error("Max Block is less than Min Block.");
-    if (nHeight < 20160 || nHeight > nBestHeight)
+    if (nHeight < 20161 || nHeight > nBestHeight)
         throw runtime_error("Min Block number out of range. (First PoS Block: 20,161)");
     if (max < 0 || max > nBestHeight)
         throw runtime_error("Max Block number out of range.");
@@ -387,28 +411,26 @@ Value getstakers(const Array& params, bool fHelp)
 		
         ExtractDestinations(txout.scriptPubKey, type, addresses, nRequired);
 
-        outStr += std::string("\"") + 
+        outStr += std::string("\"") +
                   CBitcoinAddress(addresses[0]).ToString() + 
-                  std::string("\"");	  
+                  std::string("\"");
         if(amtProvided == 1)
         {
-            outStr += std::string("\": ") +  
+            outStr += std::string(": ") +
                       strAmount;
             if( iCount != max)
             outStr += std::string(", ");
         }
         else
-        {
-            outStr += std::string("\"");
             if( iCount != max)
                 outStr += std::string(", ");
-        }
 		
         pblockindex = pblockindex->pnext;
     }
-    outStr += std::string("}'");
-	
-    result.push_back(Pair("Addresses:", outStr));
+    outStr += std::string("}' ");
+    char *finalString = (char*)outStr.c_str();
+
+    result.push_back(Pair("Addresses:", std::string(unstringify(finalString))));
 
     return result;
 }
