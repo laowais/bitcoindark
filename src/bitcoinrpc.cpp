@@ -242,11 +242,12 @@ static const CRPCCommand vRPCCommands[] =
     { "getblockcount",          &getblockcount,          true,   false },
     { "getconnectioncount",     &getconnectioncount,     true,   false },
     { "getpeerinfo",            &getpeerinfo,            true,   false },
-    { "getdifficulty",          &getdifficulty,          true,   false },
+    { "getdifficulty", 			&getdifficulty, 		 true, 	 false },
     { "getinfo",                &getinfo,                true,   false },
     { "getsubsidy",             &getsubsidy,             true,   false },
     { "getmininginfo",          &getmininginfo,          true,   false },
     { "getstakinginfo",         &getstakinginfo,         true,   false },
+    { "getstakers",		        &getstakers,	         true,   false },
     { "getnewaddress",          &getnewaddress,          true,   false },
     { "getnewpubkey",           &getnewpubkey,           true,   false },
     { "getaccountaddress",      &getaccountaddress,      true,   false },
@@ -306,7 +307,7 @@ static const CRPCCommand vRPCCommands[] =
     { "resendtx",               &resendtx,               false,  true},
     { "makekeypair",            &makekeypair,            false,  true},
     { "sendalert",              &sendalert,              false,  false},
-};
+	};
 
 CRPCTable::CRPCTable()
 {
@@ -334,7 +335,6 @@ const CRPCCommand *CRPCTable::operator[](string name) const
 // This ain't Apache.  We're just using HTTP header for the length field
 // and to be compatible with other JSON-RPC implementations.
 //
-
 string HTTPPost(const string& strMsg, const map<string,string>& mapRequestHeaders)
 {
     ostringstream s;
@@ -342,6 +342,11 @@ string HTTPPost(const string& strMsg, const map<string,string>& mapRequestHeader
       << "User-Agent: BitcoinDark-json-rpc/" << FormatFullVersion() << "\r\n"
       << "Host: 127.0.0.1\r\n"
       << "Content-Type: application/json\r\n"
+//      << "Access-Control-Allow-Origin: *\r\n"
+//      << "Access-Control-Allow-Headers: Authorization, Content-Type\r\n"
+      << "Access-Control-Allow-Headers: Authorization, Content-Type\r\n"
+      << "Access-Control-Allow-Credentials: true\r\n"
+      << "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
       << "Content-Length: " << strMsg.size() << "\r\n"
       << "Connection: close\r\n"
       << "Accept: application/json\r\n";
@@ -383,7 +388,7 @@ static string HTTPReply(int nStatus, const string& strMsg, bool keepalive)
             "<META HTTP-EQUIV='Content-Type' CONTENT='text/html; charset=ISO-8859-1'>\r\n"
             "</HEAD>\r\n"
             "<BODY><H1>401 Unauthorized.</H1></BODY>\r\n"
-            "</HTML>\r\n", rfc1123Time().c_str(), FormatFullVersion().c_str());
+            "</HTML>\r\n",rfc1123Time().c_str(),FormatFullVersion().c_str());
     const char *cStatus;
          if (nStatus == HTTP_OK) cStatus = "OK";
     else if (nStatus == HTTP_BAD_REQUEST) cStatus = "Bad Request";
@@ -1199,6 +1204,11 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getblock"               && n > 1) ConvertTo<bool>(params[1]);
     if (strMethod == "getblockbynumber"       && n > 0) ConvertTo<int64_t>(params[0]);
     if (strMethod == "getblockbynumber"       && n > 1) ConvertTo<bool>(params[1]);
+
+    if (strMethod == "getstakers"             && n > 0) ConvertTo<int64_t>(params[0]);
+    if (strMethod == "getstakers"             && n > 1) ConvertTo<int64_t>(params[1]);
+    if (strMethod == "getstakers"             && n > 2) ConvertTo<double>(params[2]);
+	
     if (strMethod == "getblockhash"           && n > 0) ConvertTo<int64_t>(params[0]);
     if (strMethod == "move"                   && n > 2) ConvertTo<double>(params[2]);
     if (strMethod == "move"                   && n > 3) ConvertTo<int64_t>(params[3]);
@@ -1233,6 +1243,8 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "signrawtransaction"     && n > 1) ConvertTo<Array>(params[1], true);
     if (strMethod == "signrawtransaction"     && n > 2) ConvertTo<Array>(params[2], true);
     if (strMethod == "keypoolrefill"          && n > 0) ConvertTo<int64_t>(params[0]);
+
+
 
     return params;
 }

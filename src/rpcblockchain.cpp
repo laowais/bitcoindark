@@ -5,6 +5,8 @@
 
 #include "main.h"
 #include "bitcoinrpc.h"
+#include "kernel.h"
+#include "base58.h"
 
 using namespace json_spirit;
 using namespace std;
@@ -92,7 +94,13 @@ double GetPoSKernelPS()
         pindex = pindex->pprev;
     }
 
-    return nStakesTime ? dStakeKernelsTriedAvg / nStakesTime : 0;
+	double result = 0;
+	
+	if (nStakesTime)
+		result = dStakeKernelsTriedAvg / nStakesTime;
+	if (IsPoSV2(nBestHeight))
+		result *= STAKE_TIMESTAMP_MASK + 1;
+	return result;
 }
 
 Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPrintTransactionDetail)
@@ -305,3 +313,107 @@ Value getcheckpoint(const Array& params, bool fHelp)
 
     return result;
 }
+
+//staker dividends
+//BTCDDev
+
+Value getstakers(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 4)
+        throw runtime_error(
+            "getstakers <min block> <max block> [total]"
+            "Returns array of stakers in between min and max block, inclusive."
+			" If [total] is provided, outputs an array of stakers with proportionate amounts. Can be used as input to sendmany for dividends.");
+
+    int nHeight = params[0].get_int();
+	int max = params[1].get_int();
+	double amount = 0.0, amountEach = 0.0;
+	int amtProvided = 0;
+	int iCount = 0;
+
+	std::string outStr("'{");	
+
+    if (max < nHeight)
+	    throw runtime_error("Max Block is less than Min Block.");
+    if (nHeight < 20160 || nHeight > nBestHeight)
+        throw runtime_error("Min Block number out of range. (First PoS Block: 20,161)");
+    if (max < 0 || max > nBestHeight)
+        throw runtime_error("Max Block number out of range.");
+
+	if(params.size() >= 3)
+	{
+		amount = params[2].get_real();
+	    if( amount / (max - nHeight + 1) < 1)
+		    throw runtime_error("Amount is less than 1 BTCD per staker.");
+	    amountEach = amount/(max-nHeight+1);
+        amtProvided = 1;
+	}
+
+	
+    //Find Min. Block
+    CBlock block;
+    CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
+    while (pblockindex->nHeight > nHeight)
+        pblockindex = pblockindex->pprev;
+
+
+	CTransaction tx;
+	CTxOut txout;
+    uint256 txHash = 0;
+    uint256 hash;
+	vector<CTxDestination> addresses;
+	int nRequired;
+    txnouttype type;
+	
+	Object entry;
+	Object result;
+
+    std::ostringstream s;
+    s << amountEach;
+    std::string strAmount = s.str();
+	
+	for(iCount = nHeight; iCount <= max; iCount++)
+	{
+        hash = *pblockindex->phashBlock;
+
+        pblockindex = mapBlockIndex[hash];
+        block.ReadFromDisk(pblockindex, true);
+
+        tx = block.vtx[1];
+        txout = tx.vout[1];
+        txHash = tx.GetHash();
+
+
+        addresses.clear();
+		
+        ExtractDestinations(txout.scriptPubKey, type, addresses, nRequired);
+
+        outStr += std::string("\"") + 
+                  CBitcoinAddress(addresses[0]).ToString() + 
+                  std::string("\"");	  
+        if(amtProvided == 1)
+        {
+            outStr += std::string("\": ") +  
+                      strAmount;
+            if( iCount != max)
+            outStr += std::string(", ");
+        }
+        else
+        {
+            outStr += std::string("\"");
+            if( iCount != max)
+                outStr += std::string(", ");
+        }
+		
+        pblockindex = pblockindex->pnext;
+    }
+    outStr += std::string("}'");
+	
+    result.push_back(Pair("Addresses:", outStr));
+
+    return result;
+}
+
+
+
+
