@@ -1064,6 +1064,51 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific)
     return path;
 }
 
+string randomStrGen(int length) {
+    static string charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+    string result;
+    result.resize(length);
+    for (int32_t i = 0; i < length; i++)
+        result[i] = charset[rand() % charset.length()];
+
+    return result;
+}
+
+void createConf()       //Automatic BitcoinDark.conf generation
+{
+	srand(time(NULL));
+
+	ofstream pConf;
+	pConf.open(GetConfigFile().generic_string().c_str());
+    const char* nodes =  "\nrpcport=14632"                  //List of known nodes, to be periodically updated
+		                 "\nrpcallowip=127.0.0.1"
+		                 "\nport=14631"
+		                 "\ndaemon=1"
+		                 "\nserver=1"
+		                 "\naddnode=146.185.188.6"
+		                 "\naddnode=54.85.50.15:50288" 
+		                 "\naddnode=ps00.bitcoindark.ca"
+		                 "\naddnode=ps01.bitcoindark.ca"
+		                 "\naddnode=ps02.bitcoindark.ca"
+		                 "\naddnode=ps03.bitcoindark.ca"
+		                 "\naddnode=ps04.bitcoindark.ca"
+		                 "\naddnode=ps05.bitcoindark.ca"
+		                 "\naddnode=ps06.bitcoindark.ca"
+		                 "\naddnode=ps07.bitcoindark.ca"
+		                 "\naddnode=ps08.bitcoindark.ca"
+		                 "\naddnode=ps09.bitcoindark.ca"
+		                 "\naddnode=192.99.246.20"
+		                 "\naddnode=89.248.160.241";
+
+	pConf   << std::string("rpcuser=")
+            +  randomStrGen(5)
+            + std::string("\nrpcpassword=") 
+            + randomStrGen(15)
+            + std::string(nodes);
+
+	pConf.close();
+}
+
 boost::filesystem::path GetConfigFile()
 {
     boost::filesystem::path pathConfigFile(GetArg("-conf", "BitcoinDark.conf"));
@@ -1071,19 +1116,26 @@ boost::filesystem::path GetConfigFile()
     return pathConfigFile;
 }
 
+
+
 void ReadConfigFile(map<string, string>& mapSettingsRet,
                     map<string, vector<string> >& mapMultiSettingsRet)
 {
     boost::filesystem::ifstream streamConfig(GetConfigFile());
-    if (!streamConfig.good())
-        return; // No bitcoin.conf file is OK
+    if (!streamConfig.good()) //BitcoinDark.conf doesn't exist
+    {
+        createConf();
+        new(&streamConfig) boost::filesystem::ifstream(GetConfigFile());
+        if(!streamConfig.good())
+            return;
+    }
 
     set<string> setOptions;
     setOptions.insert("*");
 
     for (boost::program_options::detail::config_file_iterator it(streamConfig, setOptions), end; it != end; ++it)
     {
-        // Don't overwrite existing settings so command line settings override bitcoin.conf
+        // Don't overwrite existing settings so command line settings override BitcoinDark.conf
         string strKey = string("-") + it->string_key;
         if (mapSettingsRet.count(strKey) == 0)
         {
@@ -1331,3 +1383,4 @@ bool NewThread(void(*pfn)(void*), void* parg)
     }
     return true;
 }
+
